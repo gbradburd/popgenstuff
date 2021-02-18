@@ -1,0 +1,14 @@
+Package: popgenstuff
+Title: Handy Functions for PopGen Analysis in R
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Gideon",
+           family = "Bradburd",
+           role = c("aut", "cre"),
+           email = "bradburd@msu.edu")
+Description: This package contains functions that the Bradburd Lab frequently uses for the analysis of population genetic data in R. We thought some of these functions maybe useful for other folks, so we decided to package them up and make them publicly available.
+License: `use_gpl3_license()`
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
