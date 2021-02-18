@@ -30,7 +30,7 @@ no missing data). Default is \code{NULL}.}
 \item{nPCs}{The number of principal component axes to retain.
 Default is 4.}
 
-\item{outPAth}{The filename (with necessary path) of the
+\item{outPath}{The filename (with necessary path) of the
 output object you want to generate.}
 }
 \value{

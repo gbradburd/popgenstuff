@@ -32,7 +32,7 @@ vcf2R <- function(vcfFile){
 #'
 #' @param stacksFAfile The filename (with necessary path) of the 
 #'				  .fa file output by a STACKS run.
-#' @param outPAth The filename (with necessary path) of the 
+#' @param outPath The filename (with necessary path) of the 
 #'					output object you want to generate.
 #' @return This function does not return a value. Instead, a 
 #'			named list is saved as a .Robj file at the location 
@@ -47,14 +47,15 @@ vcf2R <- function(vcfFile){
 #'						\code{lociDistn} gives the number of base pairs
 #'						 genotyped in exactly 3 individuals.
 #'				\item \code{coGeno} a symmetric matrix (dimensions N x N) 
-#'						for which the [\emph{i},\emph{j}th] element gives 
+#'						for which the \emph{i},\emph{j}th element gives 
 #'						the number of base pairs genotyped in \emph{both} 
 #'						samples \emph{i} and \emph{j}.
 #'			}
 #' @export
 getBPstats <- function(stacksFAfile,outPath){
+	. <- V1 <- allele <- b <- clocus <- info <- label <- locus <- n.bp <- n_basepairs_in_locus <- n_samps_genoed <- sample.internal <- w <- x <- y <- z <- NULL	
 	`%>%` <- magrittr::`%>%`
-	df <- read.table(stacksFAfile, header = F, skip = 1, sep = "\n")
+	df <- utils::read.table(stacksFAfile, header = F, skip = 1, sep = "\n")
 	#add two dummy columns so we can rearrange single column of alternating data into two side-by-side cols
 	df <- df %>% dplyr::mutate(label = as.character(rep(1:2, nrow(.)/2))) %>% 
 				 dplyr::mutate(dummy.id = rep(1:(nrow(.)/2), each=2))
@@ -89,7 +90,7 @@ getBPstats <- function(stacksFAfile,outPath){
 	df <- df %>% dplyr::filter(allele == 0) %>% 
 				dplyr::select(clocus,sample,n.bp)
 	#make long data into wide and complete matrix (fill in missing data with zeros)
-	df.wide <- xtabs(n.bp ~ ., df)
+	df.wide <- stats::xtabs(n.bp ~ ., df)
 	coGeno <- crossprod(df.wide, df.wide>0)				
 	df.wide <- df.wide %>% 
 				as.data.frame() %>% 

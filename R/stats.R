@@ -49,7 +49,7 @@ calcHet <- function(gt,nLoci=NULL){
 #'			the first \code{nPCs} principal component axes.
 #' @export
 doPCA <- function(gt,nPCs = 4){
-	sampleCov <- cov(t(gt)/2,use="pairwise.complete.obs")
+	sampleCov <- stats::cov(t(gt)/2,use="pairwise.complete.obs")
 	pcAxes <- eigen(sampleCov)$vectors[,2:(nPCs+1)]
 	row.names(pcAxes) <- row.names(gt)
 	return(pcAxes)
@@ -218,7 +218,7 @@ freqs2pairwisePi <- function(freqs,coGeno=NULL,quiet=FALSE){
 #'			in the VCF file. If left unspecified, each cell will 
 #'			be assigned a value of \code{L} (i.e., indicating 
 #'			no missing data). Default is \code{NULL}.
-#' @param outPAth The filename (with necessary path) of the 
+#' @param outPath The filename (with necessary path) of the 
 #'					output object you want to generate.
 #' @param nPCs The number of principal component axes to retain.
 #'			Default is 4.

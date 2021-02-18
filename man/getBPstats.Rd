@@ -10,7 +10,7 @@ getBPstats(stacksFAfile, outPath)
 \item{stacksFAfile}{The filename (with necessary path) of the
 .fa file output by a STACKS run.}
 
-\item{outPAth}{The filename (with necessary path) of the
+\item{outPath}{The filename (with necessary path) of the
 output object you want to generate.}
 }
 \value{
@@ -27,7 +27,7 @@ gives the number of base pairs genotyped in exactly
 \code{lociDistn} gives the number of base pairs
 genotyped in exactly 3 individuals.
 \item \code{coGeno} a symmetric matrix (dimensions N x N)
-for which the \link[=\\emph{i},\\emph{j}th]{\emph{i},\emph{j}th} element gives
+for which the \emph{i},\emph{j}th element gives
 the number of base pairs genotyped in \emph{both}
 samples \emph{i} and \emph{j}.
 }
