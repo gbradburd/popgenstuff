@@ -245,7 +245,12 @@ doAllTheThings <- function(vcfFile,lociDistn=NULL,coGeno=NULL,nPCs=4,outPath){
 	pwp <- freqs2pairwisePi(freqs=gt/2,coGeno,quiet=FALSE)
 	globalPi <- mean(pwp[upper.tri(pwp,diag=TRUE)])
 	pcs <- doPCA(gt,nPCs)
-	het <- calcHet(gt,nLoci=diag(coGeno))
+	if(is.null(coGeno)){
+		nLoci <- NULL
+	} else {
+		nLoci <- diag(coGeno)
+	}
+	het <- calcHet(gt,nLoci=nLoci)
 	popgenstats <- list("thetaW" = thetaW,
 						"pwp" = pwp,
 						"globalPi" = globalPi,
