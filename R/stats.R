@@ -101,19 +101,19 @@ calcThetaWsubSet <- function(gtSubset,n,L){
 #' @export
 calcThetaW <- function(gt,lociDistn=NULL){
 	N <- nrow(gt)
-	if(is.null(lociDistn)){
-		lociDistn <- rep(N,nrow(gt))
-	}
 	mdL <- apply(gt,2,function(x){N - length(which(is.na(x)))})
+	if(is.null(lociDistn)){
+		lociDistn <- unlist(lapply(1:N,function(n){length(which(mdL==n))}))
+	}
 	thetaWs <- lapply(N:1,
 					function(n){
 						if(any(mdL == n)){
 							gtSubset <- gt[,which(mdL == n),drop=FALSE]
 							L <- lociDistn[n]
-							tw <- calcThetaWsubSet(gtSubset,n,L)
+							tw <- popgenstuff:::calcThetaWsubSet(gtSubset,n,L)*L
 						}
 					})
-	return(mean(unlist(thetaWs)))
+	return(sum(unlist(thetaWs))/sum(lociDistn))
 }
 
 #' Calculate pairwise pi between two diploid individuals
@@ -140,7 +140,8 @@ calcThetaW <- function(gt,lociDistn=NULL){
 #' @export
 calcPWP <- function(ind1,ind2,L){
 	diff.homs = sum(abs(ind1-ind2)==1,na.rm=TRUE)
-	hets = sum(ind1==0.5 | ind2==0.5,na.rm=TRUE)
+	hets = length(which(ind1==0.5 & !is.na(ind2))) +  
+		   length(which(ind2==0.5 & !is.na(ind1)))
 	return((diff.homs + hets/2)/L)
 }
 
@@ -239,8 +240,8 @@ freqs2pairwisePi <- function(freqs,coGeno=NULL,quiet=FALSE){
 #'					each individual, as calculated by \code{\link{calcHet}}.
 #'			}
 #' @export
-doAllTheThings <- function(vcfFile,lociDistn=NULL,coGeno=NULL,nPCs=4,outPath){
-	gt <- vcf2R(vcfFile)
+doAllTheThings <- function(vcfFile,lociDistn=NULL,coGeno=NULL,readDepth=FALSE,nPCs=4,outPath){
+	gt <- vcf2R(vcfFile,readDepth,outPath)
 	thetaW <- calcThetaW(gt,lociDistn)
 	pwp <- freqs2pairwisePi(freqs=gt/2,coGeno,quiet=FALSE)
 	globalPi <- mean(pwp[upper.tri(pwp,diag=TRUE)])

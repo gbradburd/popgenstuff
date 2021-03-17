@@ -6,8 +6,11 @@
 #' 		 	the number of the counted allele in each individual 
 #'			at each locus.  Missing data are indicated with \code{NA}.
 #' @export
-vcf2R <- function(vcfFile){
+vcf2R <- function(vcfFile,readDepth=FALSE,outPath=NULL){
 	`%>%` <- magrittr::`%>%`
+	if(readDepth & is.null(outPath)){
+		stop("\nyou must specify a filepath to save the read depth information\n")
+	}
 	vcf <- vcfR::read.vcfR(vcfFile, verbose = FALSE)
 	#extract genotypes
 	gt <- vcfR::extract.gt(vcf)
@@ -25,7 +28,23 @@ vcf2R <- function(vcfFile){
 	gt <- gsub(genos[3],1,gt)
 	gt <- gsub(genos[4],2,gt)
 	class(gt) <- "numeric"
+	if(readDepth){
+		meanDepth <- getReadDepth(vcf)
+		write.table(meanDepth,file=paste0(outPath,"_readDepth.txt"),row.names=FALSE,col.names=c("sampID","meanReadDepth"))
+	}
 	return(gt)
+}
+
+getReadDepth <- function(vcf){
+	`%>%` <- magrittr::`%>%`
+	dp <- vcfR::extract.gt(vcf, "DP", as.numeric = T)
+	dp <- as.data.frame(t(dp), stringsAsFactors = FALSE)
+	dp$sampid <- row.names(dp)
+	dp <- dp %>% dplyr::select(sampid, tidyr::everything())
+	#change dataframe from wide matrix to long list
+	dp.long <- tidyr::pivot_longer(data = dp, names_to = "SNPid", values_to = "read_depth", cols = 2:ncol(dp))
+	dp.mean <- dp.long %>% stats::na.omit() %>% dplyr::group_by(sampid) %>% dplyr::summarise(mean.dp = mean(read_depth))
+	return(dp.mean)
 }
 
 #' Generate genotyped base-pair statistics
