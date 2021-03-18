@@ -2,6 +2,11 @@
 #'
 #' @param vcfFile The filename (with necessary path) of the 
 #'				  VCF file you want to read into R.
+#' @param readDepth A Boolean argument indicating whether or not 
+#'					to calculate the mean read depth for each individual 
+#'					from the specified VCF file.  Default is \code{FALSE}.
+#'				  VCF file you want to read into R.
+#' @param outPath The file path prepended to all output objects.
 #' @return A genotype matrix of 0s, 1s, and 2s denoting
 #' 		 	the number of the counted allele in each individual 
 #'			at each locus.  Missing data are indicated with \code{NA}.
@@ -30,12 +35,13 @@ vcf2R <- function(vcfFile,readDepth=FALSE,outPath=NULL){
 	class(gt) <- "numeric"
 	if(readDepth){
 		meanDepth <- getReadDepth(vcf)
-		write.table(meanDepth,file=paste0(outPath,"_readDepth.txt"),row.names=FALSE,col.names=c("sampid","meanReadDepth"))
+		utils::write.table(meanDepth,file=paste0(outPath,"_readDepth.txt"),row.names=FALSE,col.names=c("sampid","meanReadDepth"))
 	}
 	return(gt)
 }
 
 getReadDepth <- function(vcf){
+	sampid <- read_depth <- NULL
 	`%>%` <- magrittr::`%>%`
 	dp <- vcfR::extract.gt(vcf, "DP", as.numeric = T)
 	dp <- as.data.frame(t(dp), stringsAsFactors = FALSE)
@@ -72,7 +78,7 @@ getReadDepth <- function(vcf){
 #'			}
 #' @export
 getBPstats <- function(stacksFAfile,outPath){
-	. <- V1 <- allele <- b <- clocus <- info <- label <- locus <- n.bp <- n_basepairs_in_locus <- n_samps_genoed <- sample.internal <- w <- x <- y <- z <- NULL	
+	. <- V1 <- allele <- b <- clocus <- info <- label <- locus <- n.bp <- n_basepairs_in_locus <- n_samps_genoed <- sample.internal <- w <- x <- y <- z <- df.wide <- NULL	
 	`%>%` <- magrittr::`%>%`
 	df <- utils::read.table(stacksFAfile, header = F, skip = 1, sep = "\n")
 	#add two dummy columns so we can rearrange single column of alternating data into two side-by-side cols
@@ -106,12 +112,11 @@ getBPstats <- function(stacksFAfile,outPath){
 				dplyr::summarise(n=sum(n.bp))
 	Nbp = Nbp$n
 	#get number of individuals genotyped per every locus (and number of base pairs in locus)
-	n_indiv_per_locus <- df.wide %>% 
-									dplyr::filter(n_basepairs_in_locus > 0) %>% 
-									dplyr::group_by(clocus) %>% 
-									dplyr::mutate(n_samps_genoed = 1:dplyr::n()) %>% 
-									dplyr::mutate(n_samps_genoed = max(n_samps_genoed)) %>% 
-									dplyr::select(-sample) %>% dplyr::distinct()
+	n_indiv_per_locus <- df.wide %>% dplyr::filter(n_basepairs_in_locus > 0) %>% 
+									 dplyr::group_by(clocus) %>% 
+									 dplyr::mutate(n_samps_genoed = 1:dplyr::n()) %>% 
+									 dplyr::mutate(n_samps_genoed = max(n_samps_genoed)) %>% 
+									 dplyr::select(-sample) %>% dplyr::distinct()
 	#total number of genotyped individuals
 	N <- length(unique(df$sample))
 	#number of bp genotyped for each number of individuals from 1:N

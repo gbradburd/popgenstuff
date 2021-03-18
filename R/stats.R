@@ -110,7 +110,7 @@ calcThetaW <- function(gt,lociDistn=NULL){
 						if(any(mdL == n)){
 							gtSubset <- gt[,which(mdL == n),drop=FALSE]
 							L <- lociDistn[n]
-							tw <- popgenstuff:::calcThetaWsubSet(gtSubset,n,L)*L
+							tw <- calcThetaWsubSet(gtSubset,n,L)*L
 						}
 					})
 	return(sum(unlist(thetaWs))/sum(lociDistn))
@@ -219,8 +219,10 @@ freqs2pairwisePi <- function(freqs,coGeno=NULL,quiet=FALSE){
 #'			in the VCF file. If left unspecified, each cell will 
 #'			be assigned a value of \code{L} (i.e., indicating 
 #'			no missing data). Default is \code{NULL}.
-#' @param outPath The filename (with necessary path) of the 
-#'					output object you want to generate.
+#' @param readDepth A Boolean argument indicating whether or not 
+#'					to calculate the mean read depth for each individual 
+#'					from the specified VCF file.  Default is \code{FALSE}.
+#' @param outPath The file path prepended to all output objects.
 #' @param nPCs The number of principal component axes to retain.
 #'			Default is 4.
 #' @return This function does not return a value. Instead, a 

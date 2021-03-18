@@ -4,11 +4,18 @@
 \alias{vcf2R}
 \title{Load a VCF file into R}
 \usage{
-vcf2R(vcfFile)
+vcf2R(vcfFile, readDepth = FALSE, outPath = NULL)
 }
 \arguments{
 \item{vcfFile}{The filename (with necessary path) of the
 VCF file you want to read into R.}
+
+\item{readDepth}{A Boolean argument indicating whether or not
+to calculate the mean read depth for each individual
+from the specified VCF file.  Default is \code{FALSE}.
+VCF file you want to read into R.}
+
+\item{outPath}{The file path prepended to all output objects.}
 }
 \value{
 A genotype matrix of 0s, 1s, and 2s denoting

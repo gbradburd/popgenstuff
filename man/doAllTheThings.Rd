@@ -4,7 +4,14 @@
 \alias{doAllTheThings}
 \title{Calculate a bunch of popgen stats from a VCF file}
 \usage{
-doAllTheThings(vcfFile, lociDistn = NULL, coGeno = NULL, nPCs = 4, outPath)
+doAllTheThings(
+  vcfFile,
+  lociDistn = NULL,
+  coGeno = NULL,
+  readDepth = FALSE,
+  nPCs = 4,
+  outPath
+)
 }
 \arguments{
 \item{vcfFile}{The filename (with necessary path) of the
@@ -27,11 +34,14 @@ in the VCF file. If left unspecified, each cell will
 be assigned a value of \code{L} (i.e., indicating
 no missing data). Default is \code{NULL}.}
 
+\item{readDepth}{A Boolean argument indicating whether or not
+to calculate the mean read depth for each individual
+from the specified VCF file.  Default is \code{FALSE}.}
+
 \item{nPCs}{The number of principal component axes to retain.
 Default is 4.}
 
-\item{outPath}{The filename (with necessary path) of the
-output object you want to generate.}
+\item{outPath}{The file path prepended to all output objects.}
 }
 \value{
 This function does not return a value. Instead, a
