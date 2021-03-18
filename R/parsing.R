@@ -112,20 +112,27 @@ getBPstats <- function(stacksFAfile,outPath){
 				dplyr::summarise(n=sum(n.bp))
 	Nbp = Nbp$n
 	#get number of individuals genotyped per every locus (and number of base pairs in locus)
-	n_indiv_per_locus <- df.wide %>% dplyr::filter(n_basepairs_in_locus > 0) %>% 
-									 dplyr::group_by(clocus) %>% 
-									 dplyr::mutate(n_samps_genoed = 1:dplyr::n()) %>% 
-									 dplyr::mutate(n_samps_genoed = max(n_samps_genoed)) %>% 
-									 dplyr::select(-sample) %>% dplyr::distinct()
-	#total number of genotyped individuals
-	N <- length(unique(df$sample))
-	#number of bp genotyped for each number of individuals from 1:N
-	lociDistn <- sapply(1:N,
-					function(i){
-						sum(n_indiv_per_locus$n_basepairs_in_locus[which(n_indiv_per_locus$n_samps_genoed==i)])
-					})
+	n_indiv_per_locus <- df %>% 
+	  dplyr::add_count(clocus, name = "n_samps_genoed") %>% 
+	  dplyr::select(-sample) %>% dplyr::distinct()
+	#get total number of individuals in dataset
+	Nindivs <- length(unique(df$sample))
+	#get number of bp genotyped for each number of individuals from 1:N
+	lociDistn <- sapply(1:Nindivs,
+	                    function(i){
+	                      sum(n_indiv_per_locus$n.bp[which(n_indiv_per_locus$n_samps_genoed==i)])
+	                    })
+	#get matrix of number of cogenotyped basepairs for each pairs of individuals
+	#make long data into wide and complete matrix (fill in missing data with zeros)
+	df.wide <- stats::xtabs(n.bp ~ ., df)
+	#take the crossproduct aka multiply number of basepairs by 1 if locus is cogenotyped and 0 if it's not, sum across all loci
+	coGeno <- crossprod(df.wide, df.wide>0)
+	
 	BPstats <- list("lociDistn" = lociDistn,
-					"coGeno" = coGeno)
+					"coGeno" = coGeno,
+					"nLoci" = Nloci,
+					"Nbp" = Nbp,
+					"Nindivs" = Nindivs)
 	save(BPstats,file=paste0(outPath,"_BPstats.Robj"))
 	return(invisible("BP stats generated!"))
 }
