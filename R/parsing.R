@@ -30,7 +30,7 @@ vcf2R <- function(vcfFile,readDepth=FALSE,outPath=NULL){
 	class(gt) <- "numeric"
 	if(readDepth){
 		meanDepth <- getReadDepth(vcf)
-		write.table(meanDepth,file=paste0(outPath,"_readDepth.txt"),row.names=FALSE,col.names=c("sampID","meanReadDepth"))
+		write.table(meanDepth,file=paste0(outPath,"_readDepth.txt"),row.names=FALSE,col.names=c("sampid","meanReadDepth"))
 	}
 	return(gt)
 }
@@ -86,34 +86,25 @@ getBPstats <- function(stacksFAfile,outPath){
 	#count number of basepairs in each sequence
 	df <- df %>% dplyr::mutate(n.bp = stringr::str_length(sequence))
 	#pull out sample and locus ID info from info col into sep. cols.
-	df <- df %>% tidyr::separate(., info, into = c("x","sample"), sep = " ", remove = F) %>% 
+	df <- df %>% tidyfast::dt_separate(., info, into = c("x","sample"), sep = " ", remove = F) %>% 
 				 dplyr::mutate(sample = gsub("\\[","",sample)) %>% 
 				 dplyr::mutate(sample = gsub("\\]","",sample)) %>% 
-				 tidyr::separate(., x, 
+				 tidyfast::dt_separate(., x, 
 				  					into = c("y","clocus","z","sample.internal","w","locus","b","allele"), 
 				  					sep = "_", remove = T) %>% 
 				 dplyr::select(-y,-z,-sample.internal,-w,-b)
-	#how many loci are in the dataset?
-		#this number matches that reported in populations.log at least for test dataset, yay!
-	Nloci = df %>% dplyr::group_by(clocus) %>% dplyr::summarise(n=dplyr::n()) %>% nrow()
-	#how many total unique base pairs are in the dataset?
-	#this number matches that reported in populations.log at least for test dataset, yay!
-	Nbp = df %>% dplyr::filter(allele == 0) %>% 
-				dplyr::select(-sequence,-allele,-locus) %>% 
-				dplyr::group_by(clocus,n.bp) %>% 
-				dplyr::summarise(n=dplyr::n()) %>% 
-				dplyr::select(n.bp,clocus) %>% 
-				dplyr::ungroup(.) %>% dplyr::summarise(n=sum(n.bp))
-	Nbp = Nbp$n
 	#keep just 1 haplotype per indiv and cols we want
 	df <- df %>% dplyr::filter(allele == 0) %>% 
-				dplyr::select(clocus,sample,n.bp)
-	#make long data into wide and complete matrix (fill in missing data with zeros)
-	df.wide <- stats::xtabs(n.bp ~ ., df)
-	coGeno <- crossprod(df.wide, df.wide>0)				
-	df.wide <- df.wide %>% 
-				as.data.frame() %>% 
-				dplyr::rename("n_basepairs_in_locus" = "Freq")
+	  dplyr::select(clocus,sample,n.bp)
+	#get number of loci in dataset
+		#this number matches that reported in populations.log at least for test dataset, yay!
+	Nloci = df %>% dplyr::distinct(clocus) %>% nrow()
+	#get total number of unique base pairs in dataset
+		#this number matches that reported in populations.log at least for test dataset, yay!
+	Nbp = df %>%  dplyr::select(clocus,n.bp) %>% 
+				dplyr::distinct() %>% 
+				dplyr::summarise(n=sum(n.bp))
+	Nbp = Nbp$n
 	#get number of individuals genotyped per every locus (and number of base pairs in locus)
 	n_indiv_per_locus <- df.wide %>% 
 									dplyr::filter(n_basepairs_in_locus > 0) %>% 
