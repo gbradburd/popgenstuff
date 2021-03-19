@@ -127,7 +127,6 @@ getBPstats <- function(stacksFAfile,outPath){
 	df.wide <- stats::xtabs(n.bp ~ ., df)
 	#take the crossproduct aka multiply number of basepairs by 1 if locus is cogenotyped and 0 if it's not, sum across all loci
 	coGeno <- crossprod(df.wide, df.wide>0)
-	
 	BPstats <- list("lociDistn" = lociDistn,
 					"coGeno" = coGeno,
 					"nLoci" = Nloci,
