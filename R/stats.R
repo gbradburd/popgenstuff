@@ -100,20 +100,24 @@ calcThetaWsubSet <- function(gtSubset,n,L){
 #'			which may not be comparable across datasets.
 #' @export
 calcThetaW <- function(gt,lociDistn=NULL){
-	N <- nrow(gt)
-	mdL <- apply(gt,2,function(x){N - length(which(is.na(x)))})
-	if(is.null(lociDistn)){
-		lociDistn <- unlist(lapply(1:N,function(n){length(which(mdL==n))}))
-	}
-	thetaWs <- lapply(N:1,
-					function(n){
-						if(any(mdL == n)){
-							gtSubset <- gt[,which(mdL == n),drop=FALSE]
-							L <- lociDistn[n]
-							tw <- calcThetaWsubSet(gtSubset,n,L)*L
-						}
-					})
-	return(sum(unlist(thetaWs))/sum(lociDistn))
+  N <- nrow(gt)
+  mdL <- apply(gt,2,function(x){N - length(which(is.na(x)))})
+  if(is.null(lociDistn)){
+    lociDistn <- unlist(lapply(1:N,function(n){length(which(mdL==n))}))
+  }
+  thetaWs <- lapply(N:1,
+                    function(n){
+                      if(any(mdL == n)){
+                        gtSubset <- gt[,which(mdL == n),drop=FALSE]
+                        L <- lociDistn[n]
+                        if(L > 0){
+                          tw <- calcThetaWsubSet(gtSubset,n,L)*L
+                        } else {
+                          tw <- NULL
+                        }
+                      }
+                    })
+  return(sum(unlist(thetaWs))/sum(lociDistn))
 }
 
 #' Calculate pairwise pi between two diploid individuals

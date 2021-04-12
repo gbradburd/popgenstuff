@@ -77,7 +77,7 @@ getReadDepth <- function(vcf){
 #'						samples \emph{i} and \emph{j}.
 #'			}
 #' @export
-getBPstats <- function(stacksFAfile,outPath){
+getBPstats <- function(stacksFAfile,outPath,propScoredinfilter){
 	. <- V1 <- allele <- b <- clocus <- info <- label <- locus <- n.bp <- n_basepairs_in_locus <- n_samps_genoed <- sample.internal <- w <- x <- y <- z <- df.wide <- NULL	
 	`%>%` <- magrittr::`%>%`
 	df <- utils::read.table(stacksFAfile, header = F, skip = 1, sep = "\n")
@@ -102,6 +102,13 @@ getBPstats <- function(stacksFAfile,outPath){
 	#keep just 1 haplotype per indiv and cols we want
 	df <- df %>% dplyr::filter(allele == 0) %>% 
 	  dplyr::select(clocus,sample,n.bp)
+	#add number of individuals genotyped per every locus
+	df <- df %>% dplyr::add_count(clocus, name = "n_samps_genoed")
+	#get total number of individuals in dataset
+	Nindivs <- length(unique(df$sample))
+	#filter to just loci scored in at least X proportion of indivs
+	nindivsthreshold <- round(Nindivs*propScoredinfilter,0)
+	df <- df %>% dplyr::filter(n_samps_genoed>=nindivsthreshold)
 	#get number of loci in dataset
 		#this number matches that reported in populations.log at least for test dataset, yay!
 	Nloci = df %>% dplyr::distinct(clocus) %>% nrow()
@@ -113,10 +120,7 @@ getBPstats <- function(stacksFAfile,outPath){
 	Nbp = Nbp$n
 	#get number of individuals genotyped per every locus (and number of base pairs in locus)
 	n_indiv_per_locus <- df %>% 
-	  dplyr::add_count(clocus, name = "n_samps_genoed") %>% 
 	  dplyr::select(-sample) %>% dplyr::distinct()
-	#get total number of individuals in dataset
-	Nindivs <- length(unique(df$sample))
 	#get number of bp genotyped for each number of individuals from 1:N
 	lociDistn <- sapply(1:Nindivs,
 	                    function(i){
@@ -124,9 +128,11 @@ getBPstats <- function(stacksFAfile,outPath){
 	                    })
 	#get matrix of number of cogenotyped basepairs for each pairs of individuals
 	#make long data into wide and complete matrix (fill in missing data with zeros)
+	df <- df %>% dplyr::select(-n_samps_genoed)
 	df.wide <- stats::xtabs(n.bp ~ ., df)
 	#take the crossproduct aka multiply number of basepairs by 1 if locus is cogenotyped and 0 if it's not, sum across all loci
 	coGeno <- crossprod(df.wide, df.wide>0)
+	
 	BPstats <- list("lociDistn" = lociDistn,
 					"coGeno" = coGeno,
 					"nLoci" = Nloci,
