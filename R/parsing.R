@@ -11,7 +11,7 @@
 #' 		 	the number of the counted allele in each individual 
 #'			at each locus.  Missing data are indicated with \code{NA}.
 #' @export
-vcf2R <- function(vcfFile,readDepth=FALSE,outPath=NULL){
+vcf2R <- function(vcfFile,readDepth=FALSE,outPath=NULL,minPropIndivsScoredin){
 	`%>%` <- magrittr::`%>%`
 	if(readDepth & is.null(outPath)){
 		stop("\nyou must specify a filepath to save the read depth information\n")
@@ -33,6 +33,17 @@ vcf2R <- function(vcfFile,readDepth=FALSE,outPath=NULL){
 	gt <- gsub(genos[3],1,gt)
 	gt <- gsub(genos[4],2,gt)
 	class(gt) <- "numeric"
+	#filter to loci aka SNP positions in X % of indivs
+	nindivsthreshold <- round(nrow(gt)*minPropIndivsScoredin,0)
+	gt.long <- gt %>% as.data.frame() 
+	gt.long$sampid <- rownames(gt.long)
+	gt.long <- gt.long %>% dplyr::select(sampid,tidyr::everything())
+	gt.long <- gt.long %>% tidyr::pivot_longer(.,names_to="SNPid",values_to="genotype",cols=2:ncol(gt.long))
+	totoss <- gt.long %>% dplyr::filter(is.na(genotype)==T) %>% dplyr::group_by(SNPid) %>% dplyr::summarise(n_NAs = dplyr::n()) %>% dplyr::filter(n_NAs < nindivsthreshold)
+	gt.f <- gt.long %>% dplyr::filter(!SNPid %in% totoss$SNPid) %>% tidyfast::dt_pivot_wider(., names_from=SNPid, values_from=genotype) %>% as.data.frame()
+	row.names(gt.f) <- gt.f$sampid
+	gt.f <- gt.f %>% dplyr::select(-sampid)
+	gt <- gt.f %>% as.matrix()
 	if(readDepth){
 		meanDepth <- getReadDepth(vcf)
 		utils::write.table(meanDepth,file=paste0(outPath,"_readDepth.txt"),row.names=FALSE,col.names=c("sampid","meanReadDepth"))
@@ -49,6 +60,10 @@ getReadDepth <- function(vcf){
 	dp <- dp %>% dplyr::select(sampid, tidyr::everything())
 	#change dataframe from wide matrix to long list
 	dp.long <- tidyr::pivot_longer(data = dp, names_to = "SNPid", values_to = "read_depth", cols = 2:ncol(dp))
+	dp.long <- dp.long %>% dplyr::group_by(SNPid) %>% dplyr::mutate(n_NAs = sum(is.na(read_depth)==T))
+	#filter
+	nindivsthreshold <- round(nrow(dp)*minPropIndivsScoredin,0)
+	dp.long <- dp.long %>% dplyr::filter(n_NAs <= nrow(dp) - nindivsthreshold)
 	dp.mean <- dp.long %>% stats::na.omit() %>% dplyr::group_by(sampid) %>% dplyr::summarise(mean.dp = mean(read_depth))
 	return(dp.mean)
 }
@@ -77,7 +92,7 @@ getReadDepth <- function(vcf){
 #'						samples \emph{i} and \emph{j}.
 #'			}
 #' @export
-getBPstats <- function(stacksFAfile,outPath,propScoredinfilter){
+getBPstats <- function(stacksFAfile,outPath,minPropIndivsScoredin){
 	. <- V1 <- allele <- b <- clocus <- info <- label <- locus <- n.bp <- n_basepairs_in_locus <- n_samps_genoed <- sample.internal <- w <- x <- y <- z <- df.wide <- NULL	
 	`%>%` <- magrittr::`%>%`
 	df <- utils::read.table(stacksFAfile, header = F, skip = 1, sep = "\n")
@@ -107,8 +122,8 @@ getBPstats <- function(stacksFAfile,outPath,propScoredinfilter){
 	#get total number of individuals in dataset
 	Nindivs <- length(unique(df$sample))
 	#filter to just loci scored in at least X proportion of indivs
-	nindivsthreshold <- round(Nindivs*propScoredinfilter,0)
-	df <- df %>% dplyr::filter(n_samps_genoed>=nindivsthreshold)
+	nindivsthreshold <- round(Nindivs*minPropIndivsScoredin,0)
+	df <- df %>% dplyr::filter(n_samps_genoed >= nindivsthreshold)
 	#get number of loci in dataset
 		#this number matches that reported in populations.log at least for test dataset, yay!
 	Nloci = df %>% dplyr::distinct(clocus) %>% nrow()
