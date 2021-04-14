@@ -39,7 +39,7 @@ vcf2R <- function(vcfFile,readDepth=FALSE,outPath=NULL,minPropIndivsScoredin){
 	gt.long$sampid <- rownames(gt.long)
 	gt.long <- gt.long %>% dplyr::select(sampid,tidyr::everything())
 	gt.long <- gt.long %>% tidyr::pivot_longer(.,names_to="SNPid",values_to="genotype",cols=2:ncol(gt.long))
-	totoss <- gt.long %>% dplyr::filter(is.na(genotype)==T) %>% dplyr::group_by(SNPid) %>% dplyr::summarise(n_NAs = dplyr::n()) %>% dplyr::filter(n_NAs < nindivsthreshold)
+	totoss <- gt.long %>% dplyr::filter(is.na(genotype)==T) %>% dplyr::group_by(SNPid) %>% dplyr::summarise(n_NAs = dplyr::n()) %>% dplyr::filter(n_NAs > (nrow(gt) - nindivsthreshold))
 	gt.f <- gt.long %>% dplyr::filter(!SNPid %in% totoss$SNPid) %>% tidyfast::dt_pivot_wider(., names_from=SNPid, values_from=genotype) %>% as.data.frame()
 	row.names(gt.f) <- gt.f$sampid
 	gt.f <- gt.f %>% dplyr::select(-sampid)
