@@ -1,3 +1,106 @@
+#' Generate genotyped base-pair statistics
+#'
+#' @param stacksFAfile The filename (with necessary path) of the 
+#'				  .fa file output by a STACKS run.
+#' @param outPath The filename (with necessary path) of the 
+#'					output object you want to generate.
+#' @return This function does not return a value. Instead, a 
+#'			named list is saved as a .Robj file at the location 
+#'			designated by the \code{outPath} argument. The elements 
+#'			of the list are:
+#'			\itemize{
+#'				\item \code{lociDistn} vector of length \emph{N}, 
+#'						where \emph{N} is total number of individuals 
+#'						in the dataset, for with the \emph{i}th element 
+#'						gives the number of base pairs genotyped in exactly
+#'						\emph{i} individuals. E.g., the 3rd element of 
+#'						\code{lociDistn} gives the number of base pairs
+#'						 genotyped in exactly 3 individuals.
+#'				\item \code{coGeno} a symmetric matrix (dimensions N x N) 
+#'						for which the \emph{i},\emph{j}th element gives 
+#'						the number of base pairs genotyped in \emph{both} 
+#'						samples \emph{i} and \emph{j}.
+#'			}
+#' @export
+getBPstats <- function(stacksFAfile,outPath,minPropIndivsScoredin){
+  . <- V1 <- allele <- b <- clocus <- info <- label <- locus <- n.bp <- n_basepairs_in_locus <- n_samps_genoed <- sample.internal <- w <- x <- y <- z <- df.wide <- NULL	
+  `%>%` <- magrittr::`%>%`
+  df <- utils::read.table(stacksFAfile, header = F, skip = 1, sep = "\n")
+  #add two dummy columns so we can rearrange single column of alternating data into two side-by-side cols
+  df <- df %>% dplyr::mutate(label = as.character(rep(1:2, nrow(.)/2))) %>% 
+    dplyr::mutate(dummy.id = rep(1:(nrow(.)/2), each=2))
+  #build the 2 cols
+  df <- df %>% 
+    tidyr::pivot_wider(names_from = label, values_from = V1) %>% 
+    dplyr::rename("info" = "1") %>% 
+    dplyr::rename("sequence" = "2")
+  #count number of basepairs in each sequence
+  df <- df %>% dplyr::mutate(n.bp = stringr::str_length(sequence))
+  #pull out sample and locus ID info from info col into sep. cols.
+  df <- df %>% tidyfast::dt_separate(., info, into = c("x","sample"), sep = " ", remove = F) %>% 
+    dplyr::mutate(sample = gsub("\\[","",sample)) %>% 
+    dplyr::mutate(sample = gsub("\\]","",sample)) %>% 
+    tidyfast::dt_separate(., x, 
+                          into = c("y","clocus","z","sample.internal","w","locus","b","allele"), 
+                          sep = "_", remove = T) %>% 
+    dplyr::select(-y,-z,-sample.internal,-w,-b)
+  #keep just 1 haplotype per indiv and cols we want
+  df <- df %>% dplyr::filter(allele == 0) %>% 
+    dplyr::select(clocus,sample,n.bp)
+  #add number of individuals genotyped per every locus
+  df <- df %>% dplyr::add_count(clocus, name = "n_samps_genoed")
+  #get total number of individuals in dataset
+  Nindivs <- length(unique(df$sample))
+  #filter to just loci scored in at least X proportion of indivs
+  nindivsthreshold <- round(Nindivs*minPropIndivsScoredin,0)
+  df <- df %>% dplyr::filter(n_samps_genoed >= nindivsthreshold)
+  #get matrix of number of cogenotyped basepairs for each pair of individuals
+  #make long data into wide and complete matrix (fill in missing data with zeros)
+  df <- df %>% dplyr::select(-n_samps_genoed)
+  df.wide <- stats::xtabs(n.bp ~ ., df)
+  #take the crossproduct aka multiply number of basepairs by 1 if locus is cogenotyped and 0 if it's not, sum across all loci
+  coGeno <- crossprod(df.wide, df.wide>0)
+  #remove any individuals with 0s (share no bps with another indiv)
+  lowcovsamps <- rowSums(coGeno == 0) #give a vector of how many 0's there are for each sample (aka how many samples it doesn't share any co-genotyped bps with)
+  if(any(lowcovsamps > 0)){
+    coGeno <- coGeno[-which(lowcovsamps > 0),-which(lowcovsamps > 0)]
+  }
+  #get samples we kept
+  sampskept <- row.names(coGeno)
+  #keep just these samples and calc summary stats
+  df <- df %>% dplyr::filter(sample %in% sampskept)
+  #add number of individuals genotyped per every locus
+  df <- df %>% dplyr::add_count(clocus, name = "n_samps_genoed")
+  #get new total number of individuals in dataset after filtering
+  Nindivs <- length(unique(df$sample))
+  #get number of loci in dataset
+  #this number matches that reported in populations.log at least for test dataset (with no filtering), yay!
+  Nloci = df %>% dplyr::distinct(clocus) %>% nrow()
+  #get total number of unique base pairs in dataset
+  #this number matches that reported in populations.log at least for test dataset (with no filtering), yay!
+  Nbp = df %>%  dplyr::select(clocus,n.bp) %>% 
+    dplyr::distinct() %>% 
+    dplyr::summarise(n=sum(n.bp))
+  Nbp = Nbp$n
+  #get number of individuals genotyped per every locus (and number of base pairs in locus)
+  n_indiv_per_locus <- df %>% 
+    dplyr::select(-sample) %>% dplyr::distinct()
+  #get number of bp genotyped for each number of individuals from 1:N
+  lociDistn <- sapply(1:Nindivs,
+                      function(i){
+                        sum(n_indiv_per_locus$n.bp[which(n_indiv_per_locus$n_samps_genoed==i)])
+                      })
+  
+  BPstats <- list("lociDistn" = lociDistn,
+                  "coGeno" = coGeno,
+                  "nLoci" = Nloci,
+                  "Nbp" = Nbp,
+                  "Nindivs" = Nindivs)
+  save(BPstats,file=paste0(outPath,"_BPstats.Robj"))
+  return(invisible("BP stats generated!"))
+}
+
+
 #' Load a VCF file into R
 #'
 #' @param vcfFile The filename (with necessary path) of the 
@@ -44,6 +147,12 @@ vcf2R <- function(vcfFile,readDepth=FALSE,outPath=NULL,minPropIndivsScoredin){
 	row.names(gt.f) <- gt.f$sampid
 	gt.f <- gt.f %>% dplyr::select(-sampid)
 	gt <- gt.f %>% as.matrix()
+	#remove any samples that only have NAs - NOTE - for now doing this in BPstats then passing resulting samp name list to gt
+	#lowcovsamps <- apply(gt,1,function(x){length(which(is.na(x)))/ncol(gt)})
+	#if(any(lowcovsamps >= 1)){
+	#  gt <- gt[-which(lowcovsamps >= 1),]
+	#}
+	
 	if(readDepth){
 		meanDepth <- getReadDepth(vcf)
 		utils::write.table(meanDepth,file=paste0(outPath,"_readDepth.txt"),row.names=FALSE,col.names=c("sampid","meanReadDepth"))
@@ -68,91 +177,3 @@ getReadDepth <- function(vcf){
 	return(dp.mean)
 }
 
-#' Generate genotyped base-pair statistics
-#'
-#' @param stacksFAfile The filename (with necessary path) of the 
-#'				  .fa file output by a STACKS run.
-#' @param outPath The filename (with necessary path) of the 
-#'					output object you want to generate.
-#' @return This function does not return a value. Instead, a 
-#'			named list is saved as a .Robj file at the location 
-#'			designated by the \code{outPath} argument. The elements 
-#'			of the list are:
-#'			\itemize{
-#'				\item \code{lociDistn} vector of length \emph{N}, 
-#'						where \emph{N} is total number of individuals 
-#'						in the dataset, for with the \emph{i}th element 
-#'						gives the number of base pairs genotyped in exactly
-#'						\emph{i} individuals. E.g., the 3rd element of 
-#'						\code{lociDistn} gives the number of base pairs
-#'						 genotyped in exactly 3 individuals.
-#'				\item \code{coGeno} a symmetric matrix (dimensions N x N) 
-#'						for which the \emph{i},\emph{j}th element gives 
-#'						the number of base pairs genotyped in \emph{both} 
-#'						samples \emph{i} and \emph{j}.
-#'			}
-#' @export
-getBPstats <- function(stacksFAfile,outPath,minPropIndivsScoredin){
-	. <- V1 <- allele <- b <- clocus <- info <- label <- locus <- n.bp <- n_basepairs_in_locus <- n_samps_genoed <- sample.internal <- w <- x <- y <- z <- df.wide <- NULL	
-	`%>%` <- magrittr::`%>%`
-	df <- utils::read.table(stacksFAfile, header = F, skip = 1, sep = "\n")
-	#add two dummy columns so we can rearrange single column of alternating data into two side-by-side cols
-	df <- df %>% dplyr::mutate(label = as.character(rep(1:2, nrow(.)/2))) %>% 
-				 dplyr::mutate(dummy.id = rep(1:(nrow(.)/2), each=2))
-	#build the 2 cols
-	df <- df %>% 
-			 	tidyr::pivot_wider(names_from = label, values_from = V1) %>% 
-			 	dplyr::rename("info" = "1") %>% 
-			 	dplyr::rename("sequence" = "2")
-	#count number of basepairs in each sequence
-	df <- df %>% dplyr::mutate(n.bp = stringr::str_length(sequence))
-	#pull out sample and locus ID info from info col into sep. cols.
-	df <- df %>% tidyfast::dt_separate(., info, into = c("x","sample"), sep = " ", remove = F) %>% 
-				 dplyr::mutate(sample = gsub("\\[","",sample)) %>% 
-				 dplyr::mutate(sample = gsub("\\]","",sample)) %>% 
-				 tidyfast::dt_separate(., x, 
-				  					into = c("y","clocus","z","sample.internal","w","locus","b","allele"), 
-				  					sep = "_", remove = T) %>% 
-				 dplyr::select(-y,-z,-sample.internal,-w,-b)
-	#keep just 1 haplotype per indiv and cols we want
-	df <- df %>% dplyr::filter(allele == 0) %>% 
-	  dplyr::select(clocus,sample,n.bp)
-	#add number of individuals genotyped per every locus
-	df <- df %>% dplyr::add_count(clocus, name = "n_samps_genoed")
-	#get total number of individuals in dataset
-	Nindivs <- length(unique(df$sample))
-	#filter to just loci scored in at least X proportion of indivs
-	nindivsthreshold <- round(Nindivs*minPropIndivsScoredin,0)
-	df <- df %>% dplyr::filter(n_samps_genoed >= nindivsthreshold)
-	#get number of loci in dataset
-		#this number matches that reported in populations.log at least for test dataset, yay!
-	Nloci = df %>% dplyr::distinct(clocus) %>% nrow()
-	#get total number of unique base pairs in dataset
-		#this number matches that reported in populations.log at least for test dataset, yay!
-	Nbp = df %>%  dplyr::select(clocus,n.bp) %>% 
-				dplyr::distinct() %>% 
-				dplyr::summarise(n=sum(n.bp))
-	Nbp = Nbp$n
-	#get number of individuals genotyped per every locus (and number of base pairs in locus)
-	n_indiv_per_locus <- df %>% 
-	  dplyr::select(-sample) %>% dplyr::distinct()
-	#get number of bp genotyped for each number of individuals from 1:N
-	lociDistn <- sapply(1:Nindivs,
-	                    function(i){
-	                      sum(n_indiv_per_locus$n.bp[which(n_indiv_per_locus$n_samps_genoed==i)])
-	                    })
-	#get matrix of number of cogenotyped basepairs for each pairs of individuals
-	#make long data into wide and complete matrix (fill in missing data with zeros)
-	df <- df %>% dplyr::select(-n_samps_genoed)
-	df.wide <- stats::xtabs(n.bp ~ ., df)
-	#take the crossproduct aka multiply number of basepairs by 1 if locus is cogenotyped and 0 if it's not, sum across all loci
-	coGeno <- crossprod(df.wide, df.wide>0)
-	
-	BPstats <- list("lociDistn" = lociDistn,
-					"coGeno" = coGeno,
-					"nLoci" = Nloci,
-					"Nbp" = Nbp,
-					"Nindivs" = Nindivs)
-	save(BPstats,file=paste0(outPath,"_BPstats.Robj"))
-	return(invisible("BP stats generated!"))
-}
