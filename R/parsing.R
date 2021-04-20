@@ -90,7 +90,43 @@ getBPstats <- function(stacksFAfile,outPath,minPropIndivsScoredin){
                       function(i){
                         sum(n_indiv_per_locus$n.bp[which(n_indiv_per_locus$n_samps_genoed==i)])
                       })
-  
+	# do checks on data
+	alerts <- rep(0,3)
+	# check for absolutely low genotyped bp
+	if(any(diag(coGeno) < 100)){
+		alerts[1] <- 1
+	}
+	# check for relatively low genotyped bp
+	if(any(diag(coGeno) < median(diag(coGeno))/4)){
+		alerts[2] <- 1
+	}
+	# check for relativley low mean coGeno
+	if(any(rowMeans(coGeno) < median(rowMeans(coGeno))/4)){
+		alerts[3] <- 1
+	}
+	# print alert file
+	if(any(alerts==1)){
+		alertFile <- paste0(outPath,"_ALERT")
+		file.create(alertFile)
+		if(alerts[1]){
+			problemChildren <- names(diag(coGeno))[which(diag(coGeno)<100)]
+			alertMsg <- sprintf("these sample(s) have fewer than 100 genotyped base-pairs: %s \n",
+											paste0(problemChildren,collapse=" "))
+			cat(alertMsg,file=alertFile,append=TRUE)
+		}
+		if(alerts[2]){
+			problemChildren <- names(diag(coGeno))[which(diag(coGeno) < median(diag(coGeno))/4)]
+			alertMsg <- sprintf("these sample(s) have less than 1/4 of the median number of genotyped base-pairs: %s \n",
+											paste0(problemChildren,collapse=" "))
+			cat(alertMsg,file=alertFile,append=TRUE)
+		}
+		if(alerts[3]){
+			problemChildren <- names(diag(coGeno))[which(rowMeans(coGeno) < median(rowMeans(coGeno))/4)]
+			alertMsg <- sprintf("these sample(s) have less than 1/4 of the median average number of co-genotyped base-pairs: %s \n",
+											paste0(problemChildren,collapse=" "))
+			cat(alertMsg,file=alertFile,append=TRUE)
+		}
+	}
   BPstats <- list("lociDistn" = lociDistn,
                   "coGeno" = coGeno,
                   "nLoci" = Nloci,
