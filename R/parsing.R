@@ -60,15 +60,15 @@ getBPstats <- function(stacksFAfile,outPath,minPropIndivsScoredin){
   df.wide <- stats::xtabs(n.bp ~ ., df)
   #take the crossproduct aka multiply number of basepairs by 1 if locus is cogenotyped and 0 if it's not, sum across all loci
   coGeno <- crossprod(df.wide, df.wide>0)
-  #remove any individuals with 0s (share no bps with another indiv)
-  lowcovsamps <- rowSums(coGeno == 0) #give a vector of how many 0's there are for each sample (aka how many samples it doesn't share any co-genotyped bps with)
-  if(any(lowcovsamps > 0)){
-    coGeno <- coGeno[-which(lowcovsamps > 0),-which(lowcovsamps > 0)]
-  }
+  #remove any individuals with 0s (share no bps with another indiv) - TAKING THIS OUT FOR NOW AND ASSESSING LOWCOVSAMPS
+  #lowcovsamps <- rowSums(coGeno == 0) #give a vector of how many 0's there are for each sample (aka how many samples it doesn't share any co-genotyped bps with)
+  #if(any(lowcovsamps > 0)){
+  #  coGeno <- coGeno[-which(lowcovsamps > 0),-which(lowcovsamps > 0)]
+  #}
   #get samples we kept
-  sampskept <- row.names(coGeno)
+  #sampskept <- row.names(coGeno)
   #keep just these samples and calc summary stats
-  df <- df %>% dplyr::filter(sample %in% sampskept)
+  #df <- df %>% dplyr::filter(sample %in% sampskept)
   #add number of individuals genotyped per every locus
   df <- df %>% dplyr::add_count(clocus, name = "n_samps_genoed")
   #get new total number of individuals in dataset after filtering
@@ -109,21 +109,21 @@ getBPstats <- function(stacksFAfile,outPath,minPropIndivsScoredin){
 		alertFile <- paste0(outPath,"_ALERT")
 		file.create(alertFile)
 		if(alerts[1]){
-			problemChildren <- names(diag(coGeno))[which(diag(coGeno)<100)]
-			alertMsg <- sprintf("these sample(s) have fewer than 100 genotyped base-pairs: %s \n",
-											paste0(problemChildren,collapse=" "))
+			problemChildren <- names(diag(coGeno))[which(diag(coGeno)<500)]
+			alertMsg <- sprintf("these sample(s) have fewer than 500 genotyped base-pairs:\n %s \n",
+											paste0(problemChildren,collapse="\n"))
 			cat(alertMsg,file=alertFile,append=TRUE)
 		}
 		if(alerts[2]){
 			problemChildren <- names(diag(coGeno))[which(diag(coGeno) < median(diag(coGeno))/4)]
-			alertMsg <- sprintf("these sample(s) have less than 1/4 of the median number of genotyped base-pairs: %s \n",
-											paste0(problemChildren,collapse=" "))
+			alertMsg <- sprintf("these sample(s) have less than 1/4 of the median number of genotyped base-pairs:\n %s \n",
+											paste0(problemChildren,collapse="\n"))
 			cat(alertMsg,file=alertFile,append=TRUE)
 		}
 		if(alerts[3]){
 			problemChildren <- names(diag(coGeno))[which(rowMeans(coGeno) < median(rowMeans(coGeno))/4)]
-			alertMsg <- sprintf("these sample(s) have less than 1/4 of the median average number of co-genotyped base-pairs: %s \n",
-											paste0(problemChildren,collapse=" "))
+			alertMsg <- sprintf("these sample(s) have less than 1/4 of the median average number of co-genotyped base-pairs:\n %s \n",
+											paste0(problemChildren,collapse="\n"))
 			cat(alertMsg,file=alertFile,append=TRUE)
 		}
 	}
