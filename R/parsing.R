@@ -98,24 +98,27 @@ getBPstats <- function(stacksFAfile,outPath,minPropIndivsScoredin,checkforlowcov
   df.wide <- stats::xtabs(n.bp ~ ., df)
   #take the crossproduct aka multiply number of basepairs by 1 if locus is cogenotyped and 0 if it's not, sum across all loci
   coGenowithNs <- crossprod(df.wide, df.wide>0) #total number of bps at loci genoed in both indivs (counting Ns)
-  #subtract of Ns from intial coGeno
+  #subtract of Ns from initial coGeno
   coGeno = coGenowithNs - unionNs
   #add back number N's that were in indiv i but not genoed in j and vice versa
-  for(i in 0:(Nindivs-2)){
-  	for(j in (i+1):(Nindivs-1)){
+  samps <- colnames(coGeno)
+  for(i in 1:(Nindivs-1)){
+  	for(j in (i+1):Nindivs){
   	  #print(paste("i is", i, "and j is", j))
-  		inSampI <- which(positions$sample == paste0("sample",i))
+  	  sampi <- samps[i]
+  	  sampj <- samps[j]
+  		inSampI <- which(positions$sample == sampi)
   		missingBPinI <- unlist(lapply(strsplit(positions$N_ID[inSampI],":"),"[[",1))
-  		missingLociInJ <- names(which(df.wide[,paste0("sample",j)]==0))
+  		missingLociInJ <- names(which(df.wide[,sampj]==0))
   		toAdd <- length(which(missingBPinI %in% missingLociInJ))
-  		inSampJ <- which(positions$sample == paste0("sample",j))
+  		inSampJ <- which(positions$sample == sampj)
   		missingBPinJ <- unlist(lapply(strsplit(positions$N_ID[inSampJ],":"),"[[",1))
-  		missingLociInI <- names(which(df.wide[,paste0("sample",i)]==0))
+  		missingLociInI <- names(which(df.wide[,sampi]==0))
   		toAdd <- toAdd + length(which(missingBPinJ %in% missingLociInI))
-  		coGeno[paste0("sample",i),paste0("sample",j)] <- coGeno[paste0("sample",i),paste0("sample",j)] + toAdd
-  		coGeno[paste0("sample",j),paste0("sample",i)] <- coGeno[paste0("sample",i),paste0("sample",j)]
+  		coGeno[sampi,sampj] <- coGeno[sampi,sampj] + toAdd
+  		coGeno[sampj,sampi] <- coGeno[sampi,sampj]
   	}
-    print(paste("done with sample", (i+1), "of", Nindivs))
+    print(paste("done with sample", i, "of", Nindivs))
   }
   #add (back) number of individuals genotyped per every locus
   df <- df %>% dplyr::add_count(clocus, name = "n_samps_genoed")
