@@ -143,9 +143,14 @@ calcThetaW <- function(gt,lociDistn=NULL){
 #'			comparable across datasets.
 #' @export
 calcPWP <- function(ind1,ind2,L){
+	nMD <- ifelse((any(is.na(ind1)) | any(is.na(ind2))),
+				length(unique(which(is.na(ind1)),which(is.na(ind2)))),
+				0)
+	if(is.null(L)){
+		L <- length(ind1) - nMD
+	}
 	diff.homs = sum(abs(ind1-ind2)==1,na.rm=TRUE)
-	hets = length(which(ind1==0.5 & !is.na(ind2))) +  
-		   length(which(ind2==0.5 & !is.na(ind1)))
+	hets = sum(ind1==0.5 | ind2==0.5,na.rm=TRUE)
 	return((diff.homs + hets/2)/L)
 }
 
